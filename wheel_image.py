@@ -1,6 +1,7 @@
 import io
 import random
 from PIL import Image, ImageDraw, ImageFont
+from wheel_text import WheelLabels
 
 SIZE = 360
 WHEEL_RADIUS = 160
@@ -30,20 +31,14 @@ def draw_wheel(names: list[str]):
     wheel = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(wheel)
     step = 360 / len(names)
-    font = ImageFont.load_default(size=max(10, min(22, int(260 / max(len(names), 1)) + 6)))
+    font = ImageFont.load_default(size=max(12, min(28, int(320 / max(len(names), 1)) + 8)))
+    labels = WheelLabels()
 
     for i, (name, color) in enumerate(zip(names, slice_colors(len(names)))):
         draw.pieslice((0, 0, size - 1, size - 1), i * step, (i + 1) * step, fill=color, outline=(255, 255, 255), width=2)
 
         # Il nome viene scritto in orizzontale su un'immagine a parte e ruotato lungo il raggio dello spicchio
-        label = name if len(name) <= MAX_NAME_LENGTH else name[:MAX_NAME_LENGTH - 1] + "…"
-        box = draw.textbbox((0, 0), label, font=font)
-        text_width, text_height = box[2] - box[0], box[3] - box[1]
-        text = Image.new("RGBA", (WHEEL_RADIUS, text_height + 8), (0, 0, 0, 0))
-        ImageDraw.Draw(text).text(
-            (WHEEL_RADIUS - text_width - 14, 4 - box[1]), label, font=font,
-            fill=(20, 20, 20), stroke_width=1, stroke_fill=(255, 255, 255)
-        )
+        text = labels.render(name, font, WHEEL_RADIUS, MAX_NAME_LENGTH)
         # Il testo parte dal centro verso il bordo: si incolla su un quadrato grande quanto la ruota e si ruota
         layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         layer.paste(text, (WHEEL_RADIUS, WHEEL_RADIUS - text.height // 2), text)

@@ -4,3 +4,4 @@ aiohttp==3.14.5
 python-dotenv==1.2.4
 python-dateutil==2.8.2
 pillow==11.3.0
+emoji==2.15.0

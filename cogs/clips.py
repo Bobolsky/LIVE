@@ -35,11 +35,18 @@ class Clips(commands.Cog):
     async def cog_unload(self):
         self.load_task.cancel()
 
-    def add_clip(self, message: discord.Message):
-        # Le clip pubblicate dal bot con /medal appartengono all'utente menzionato nel messaggio
-        author_id = message.author.id
-        if message.author.id == self.bot.user.id and message.mentions:
-            author_id = message.mentions[0].id
+    def add_clip(self, message: discord.Message, author_id=None):
+        if author_id is None and message.id in self.author_of:
+            return
+        # Compatibilità con le vecchie clip del bot che contenevano una menzione.
+        if author_id is None:
+            author_id = message.author.id
+            if message.author.id == self.bot.user.id and message.mentions:
+                author_id = message.mentions[0].id
+        if message.id in self.author_of:
+            if self.author_of[message.id] == author_id:
+                return
+            self.remove_clip(message.id)
         self.clips_by_author.setdefault(author_id, []).append(message.id)
         self.author_of[message.id] = author_id
 
@@ -65,9 +72,11 @@ class Clips(commands.Cog):
             print("Canale Clips non trovato.")
             return
 
+        docs = await asyncio.to_thread(lambda: list(db.collection('medal_clip_authors').stream()))
+        medal_authors = {int(doc.id): doc.to_dict()["author_id"] for doc in docs}
         async for message in self.channel.history(limit=None):
             if is_clip(message):
-                self.add_clip(message)
+                self.add_clip(message, author_id=medal_authors.get(message.id))
         saved = await asyncio.to_thread(self.state_ref.get)
         # Si tengono solo le clip ancora presenti nel canale
         self.seen = set((saved.to_dict() or {}).get("ids", [])) & set(self.author_of)
@@ -106,7 +115,7 @@ class Clips(commands.Cog):
     async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent):
         self.remove_clip(payload.message_id)
 
-    @app_commands.command(name="clip", description="Rivivi un momento indimenticabile attraverso con una clip")
+    @app_commands.command(name="clip", description="Rivivi un momento indimenticabile attraverso una clip")
     async def clip(self, interaction: discord.Interaction):
         if not self.loaded:
             await interaction.response.send_message("Sto ancora caricando le clip, riprova tra poco.", ephemeral=True)

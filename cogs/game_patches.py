@@ -1,3 +1,4 @@
+import asyncio
 import html
 import re
 from dataclasses import dataclass
@@ -101,7 +102,7 @@ async def fetch_patch_embed(session: aiohttp.ClientSession, game: Game, patch: s
             if response.status != 200:
                 return None
             page = await response.text()
-    except aiohttp.ClientError as e:
+    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
         print(f"[{game.name}] Errore durante la richiesta delle patch notes: {e}")
         return None
 
@@ -220,7 +221,7 @@ class GamePatches(commands.Cog):
 
     @tasks.loop(minutes=30)
     async def check_patches(self):
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
             for game in GAMES:
                 # Un errore su un gioco non deve bloccare il controllo degli altri
                 try:
