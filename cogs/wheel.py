@@ -1,13 +1,14 @@
 import asyncio
+import io
 import random
 import discord
 from discord import app_commands, ui
 from discord.ext import commands
+from wheel_image import render_spin
 
 EMBED_COLOR = 0x5865F2
 MIN_PLAYERS = 2
-SPIN_FRAMES = 4  # quante volte cambia il nome mostrato mentre la ruota gira
-SPIN_DELAY = 1.0  # secondi tra un nome e l'altro
+SPIN_BUFFER = 1.5  # secondi in più per dare tempo a Discord di caricare la gif
 ROUND_DELAY = 3.0  # secondi di pausa dopo ogni eliminazione
 
 
@@ -93,19 +94,23 @@ class WheelView(ui.View):
     async def run(self, message: discord.Message):
         try:
             while len(self.players) > 1 and not self.stopped:
-                for _ in range(SPIN_FRAMES):
-                    if self.stopped:
-                        break
-                    name = random.choice(list(self.players.values())).display_name
-                    await message.edit(embed=self.build_embed("🎡 La ruota gira...", f"➡️ **{name}**"))
-                    await asyncio.sleep(SPIN_DELAY)
-                if self.stopped:
-                    break
+                players = list(self.players.values())
+                index = random.randrange(len(players))
+                loser = players[index]
 
-                loser = random.choice(list(self.players.values()))
+                # La gif viene generata in un thread per non bloccare il bot mentre disegna i frame
+                gif, png, duration = await asyncio.to_thread(render_spin, [player.display_name for player in players], index)
+                embed = self.build_embed("🎡 La ruota gira...", "Chi verrà eliminato?")
+                embed.set_image(url="attachment://wheel.gif")
+                await message.edit(embed=embed, attachments=[discord.File(io.BytesIO(gif), filename="wheel.gif")])
+                await asyncio.sleep(duration + SPIN_BUFFER)
+
+                # Il giro in corso si completa anche se nel frattempo qualcuno ha premuto Stop
                 del self.players[loser.id]
                 self.eliminated.append(loser)
-                await message.edit(embed=self.build_embed("🎡 La ruota si è fermata", f"💀 **{loser.display_name}** è stato eliminato!"))
+                embed = self.build_embed("🎡 La ruota si è fermata", f"💀 **{loser.display_name}** è stato eliminato!")
+                embed.set_image(url="attachment://wheel.png")
+                await message.edit(embed=embed, attachments=[discord.File(io.BytesIO(png), filename="wheel.png")])
                 await asyncio.sleep(ROUND_DELAY)
 
             if self.stopped and len(self.players) > 1:
@@ -114,7 +119,7 @@ class WheelView(ui.View):
                 winner = next(iter(self.players.values()))
                 embed = self.build_embed("🏆 Ruota conclusa", f"{winner.mention} è l'ultimo rimasto!")
             self.end_view()
-            await message.edit(embed=embed, view=self)
+            await message.edit(embed=embed, view=self, attachments=[])
         except discord.NotFound:
             self.end_view()  # Il messaggio è stato cancellato
 
