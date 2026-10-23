@@ -41,31 +41,19 @@ class WheelView(ui.View):
         return embed
 
     def lobby_embed(self):
-        return self.build_embed(
-            "🎡 Ruota",
-            f"Premi **Iscriviti** per partecipare. Quando siete pronti (minimo {MIN_PLAYERS} giocatori) premi **Start**: "
-            "a ogni giro la ruota elimina un giocatore, fino a quando ne resta uno."
-        )
+        return self.build_embed("🎡 Ruota", None)
 
     def end_view(self):
         for item in self.children:
             item.disabled = True
         self.stop()
 
-    @ui.button(label="Iscriviti", style=discord.ButtonStyle.success, custom_id="wheel_join")
+    @ui.button(label="Partecipa", style=discord.ButtonStyle.success, custom_id="wheel_join")
     async def join_button(self, interaction: discord.Interaction, button: ui.Button):
         if interaction.user.id in self.players:
-            await interaction.response.send_message("Sei già iscritto alla ruota.", ephemeral=True)
+            await interaction.response.send_message("Partecipi già alla ruota.", ephemeral=True)
             return
         self.players[interaction.user.id] = interaction.user
-        await interaction.response.edit_message(embed=self.lobby_embed(), view=self)
-
-    @ui.button(label="Esci", style=discord.ButtonStyle.secondary, custom_id="wheel_leave")
-    async def leave_button(self, interaction: discord.Interaction, button: ui.Button):
-        if interaction.user.id not in self.players:
-            await interaction.response.send_message("Non sei iscritto alla ruota.", ephemeral=True)
-            return
-        del self.players[interaction.user.id]
         await interaction.response.edit_message(embed=self.lobby_embed(), view=self)
 
     @ui.button(label="Start", style=discord.ButtonStyle.primary, custom_id="wheel_start")
@@ -90,6 +78,14 @@ class WheelView(ui.View):
             return
         self.stopped = True
         await interaction.response.defer()
+
+    @ui.button(label="Esci", style=discord.ButtonStyle.secondary, custom_id="wheel_leave")
+    async def leave_button(self, interaction: discord.Interaction, button: ui.Button):
+        if interaction.user.id not in self.players:
+            await interaction.response.send_message("Non partecipi alla ruota.", ephemeral=True)
+            return
+        del self.players[interaction.user.id]
+        await interaction.response.edit_message(embed=self.lobby_embed(), view=self)
 
     async def run(self, message: discord.Message):
         try:
@@ -138,9 +134,9 @@ class Wheel(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="wheel", description="Fai girare la ruota ed elimina un giocatore alla volta")
+    @app_commands.command(name="wheelive", description="Fai girare la ruota ed elimina un giocatore alla volta")
     @app_commands.guild_only()
-    async def wheel(self, interaction: discord.Interaction):
+    async def wheelive(self, interaction: discord.Interaction):
         view = WheelView(interaction.user)
         await interaction.response.send_message(embed=view.lobby_embed(), view=view)
         view.message = await interaction.original_response()

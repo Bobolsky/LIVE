@@ -36,8 +36,12 @@ class Clips(commands.Cog):
         self.load_task.cancel()
 
     def add_clip(self, message: discord.Message):
-        self.clips_by_author.setdefault(message.author.id, []).append(message.id)
-        self.author_of[message.id] = message.author.id
+        # Le clip pubblicate dal bot con /medal appartengono all'utente menzionato nel messaggio
+        author_id = message.author.id
+        if message.author.id == self.bot.user.id and message.mentions:
+            author_id = message.mentions[0].id
+        self.clips_by_author.setdefault(author_id, []).append(message.id)
+        self.author_of[message.id] = author_id
 
     def remove_clip(self, message_id: int):
         author_id = self.author_of.pop(message_id, None)
