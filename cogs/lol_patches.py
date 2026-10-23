@@ -11,7 +11,7 @@ from settings import LOL_PATCH_CHANNEL_ID, LOL_PATCH_ROLE_ID
 VERSIONS_URL = "https://ddragon.leagueoflegends.com/api/versions.json"
 # Pagina ufficiale della singola patch (es. patch 26.20 -> .../league-of-legends-patch-26-20-notes/)
 PATCH_ARTICLE_URL = "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-{major}-{minor}-notes/"
-EMBED_COLOR = 0xC89B3C
+EMBED_COLOR = 0x0AC8B9
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; LiveBot)"}
 MAX_PATCHES_PER_CHECK = 3
 

@@ -19,6 +19,7 @@ EXTENSIONS = [
     "cogs.medal",
     "cogs.lol_patches",
     "cogs.clips",
+    "cogs.wheel",
 ]
 
 
