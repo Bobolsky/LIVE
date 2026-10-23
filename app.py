@@ -12,6 +12,7 @@ EXTENSIONS = [
     "cogs.status",
     "cogs.quotes",
     "cogs.birthdays",
+    "cogs.holidays",
     "cogs.tickets",
     "cogs.welcome",
     "cogs.medal",

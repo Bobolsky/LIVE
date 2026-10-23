@@ -1,5 +1,14 @@
 # LiveBotDiscord
 
+## Auguri per le feste
+
+Oltre ai compleanni, il bot invia gli auguri nel canale di benvenuto per Halloween
+(31 ottobre), Vigilia (24 dicembre), Natale (25 dicembre), Capodanno (1 gennaio),
+Pasqua cattolica (calcolata ogni anno), Ferragosto (15 agosto) e Befana (6 gennaio).
+Controlla ogni minuto usando il fuso `Europe/Rome`, anche all'avvio: se era spento
+a mezzanotte recupera gli auguri nella stessa giornata. La data dell'ultimo invio
+viene salvata su Firestore per evitare di ripeterli dopo un riavvio.
+
 ## Emoji nella ruota
 
 Le emoji Unicode nei nickname sono disegnate a colori nella GIF e nel PNG finale,
