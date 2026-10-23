@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 import aiohttp
 import discord
 from discord import app_commands
@@ -8,6 +9,10 @@ from db import db
 from settings import MEDAL_CHANNEL_ID
 
 MEDAL_API_URL = "https://developers.medal.tv/v1/latest"
+# Dati di una singola clip, tra cui l'autore (poster.userId): serve a ricavare l'ID dal link di una clip
+MEDAL_CONTENT_URL = "https://medal.tv/api/content/{clip_id}"
+CLIP_LINK = re.compile(r"medal\.tv/(?:[^\s]*/)?clips?/([A-Za-z0-9_-]+)", re.IGNORECASE)
+PROFILE_LINK = re.compile(r"medal\.tv/users/(\d+)", re.IGNORECASE)
 # Chiave del bot (dal .env), usata per chi non inserisce una propria chiave
 DEFAULT_API_KEY = os.environ.get("MEDAL_API_KEY")
 CHECK_INTERVAL_HOURS = 3  # controlli rari, per non sovraccaricare l'API di Medal
@@ -35,6 +40,30 @@ async def latest_clips(session: aiohttp.ClientSession, medal_user_id: str, api_k
     return [clip for clip in data["contentObjects"] if clip.get("contentId")]
 
 
+async def resolve_medal_user_id(session: aiohttp.ClientSession, text: str):
+    # Accetta l'ID numerico, il link del profilo (medal.tv/users/<id>) o il link di una clip dell'utente
+    text = text.strip()
+    if text.isdigit():
+        return text
+    if match := PROFILE_LINK.search(text):
+        return match.group(1)
+    match = CLIP_LINK.search(text)
+    if not match:
+        return None
+
+    url = MEDAL_CONTENT_URL.format(clip_id=match.group(1))
+    async with session.get(url, headers={"Accept": "application/json"}) as response:
+        if response.status != 200:
+            print(f"[Medal] Errore durante la lettura della clip {match.group(1)}: {response.status}")
+            return None
+        try:
+            data = await response.json(content_type=None)
+        except ValueError:
+            return None
+    user_id = str(((data or {}).get("poster") or {}).get("userId") or "") if isinstance(data, dict) else ""
+    return user_id if user_id.isdigit() else None
+
+
 class Medal(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -53,20 +82,23 @@ class Medal(commands.Cog):
 
     @app_commands.command(name="medal", description="Pubblica automaticamente le tue nuove clip di Medal nel canale delle clip")
     @app_commands.describe(
-        medal_user_id="Il tuo ID utente di Medal (solo numeri)",
+        link_clip="Il link di una tua clip di Medal (va bene anche il tuo ID utente di Medal)",
         api_key="La tua chiave API pubblica di Medal (pub_...), facoltativa"
     )
     @app_commands.guild_only()
-    async def medal(self, interaction: discord.Interaction, medal_user_id: str, api_key: str = None):
+    async def medal(self, interaction: discord.Interaction, link_clip: str, api_key: str = None):
         await interaction.response.defer(ephemeral=True)
-
-        medal_user_id = medal_user_id.strip()
-        if not medal_user_id.isdigit():
-            await interaction.followup.send("L'ID utente di Medal deve contenere solo numeri.", ephemeral=True)
-            return
 
         api_key = (api_key or "").strip() or None
         async with aiohttp.ClientSession() as session:
+            medal_user_id = await resolve_medal_user_id(session, link_clip)
+            if medal_user_id is None:
+                await interaction.followup.send(
+                    "Non riesco a capire chi sei su Medal: incolla il link di una tua clip "
+                    "(Condividi > Copia link su Medal).",
+                    ephemeral=True
+                )
+                return
             clips = await latest_clips(session, medal_user_id, api_key or DEFAULT_API_KEY)
         if clips is None:
             await interaction.followup.send("Non riesco a leggere le clip da Medal: controlla l'ID utente e la chiave API.", ephemeral=True)
